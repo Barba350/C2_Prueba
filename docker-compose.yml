@@ -1,0 +1,57 @@
+services:
+
+  db:
+    image: mysql:8.4
+    container_name: barba_db
+    environment:
+      MYSQL_ROOT_PASSWORD: root123
+      MYSQL_DATABASE: barba_db
+    ports:
+      - "3306:3306"
+    volumes:
+      - db_data:/var/lib/mysql
+      - ./db/init.sql:/docker-entrypoint-initdb.d/init.sql
+    networks:
+      - barba_net
+    healthcheck:
+      test: ["CMD-SHELL", "mysqladmin ping -h localhost -uroot -p$$MYSQL_ROOT_PASSWORD --silent"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 20s
+
+  backend:
+    build: ./backend
+    container_name: barba_backend
+    environment:
+      DB_HOST: db
+      DB_NAME: barba_db
+      DB_USER: root
+      DB_PASS: root123
+      AWS_REGION: ${AWS_REGION}
+      AWS_BUCKET_NAME: ${AWS_BUCKET_NAME}
+      AWS_ACCESS_KEY_ID: ${AWS_ACCESS_KEY_ID}
+      AWS_SECRET_ACCESS_KEY: ${AWS_SECRET_ACCESS_KEY}
+    ports:
+      - "8080:80"
+    depends_on:
+      db:
+        condition: service_healthy
+    networks:
+      - barba_net
+
+  frontend:
+    build: ./frontend
+    container_name: barba_frontend
+    ports:
+      - "8088:80"
+    depends_on:
+      - backend
+    networks:
+      - barba_net
+
+volumes:
+  db_data:
+
+networks:
+  barba_net:

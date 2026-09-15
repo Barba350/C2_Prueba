@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Barba | Venta de iPhones</title>
+<style>
+  body {
+    font-family: Arial, sans-serif;
+    background: #111;
+    color: #fff;
+    text-align: center;
+    padding: 30px;
+  }
+  h1 { margin-bottom: 5px; }
+
+  form {
+    margin-top: 20px;
+    display: flex;
+    justify-content: center;
+    gap: 8px;
+    flex-wrap: wrap;
+  }
+  input {
+    padding: 8px;
+    border-radius: 6px;
+    border: none;
+  }
+  button {
+    padding: 8px 14px;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+    color: #fff;
+  }
+  .btn-add  { background: #4da6ff; }
+  .btn-buy  { background: #28a745; margin-right: 6px; }
+  .btn-del  { background: #dc3545; }
+  button:disabled { background: #555; cursor: not-allowed; }
+
+  #productos {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 20px;
+    margin-top: 30px;
+  }
+  .card {
+    background: #1c1c1c;
+    border-radius: 10px;
+    padding: 20px;
+    width: 200px;
+  }
+  .card img {
+    width: 100%;
+    height: 140px;
+    object-fit: cover;
+    border-radius: 8px;
+    margin-bottom: 10px;
+    background: #333;
+  }
+  .precio { font-size: 1.3rem; color: #4da6ff; margin: 6px 0; }
+  .acciones { margin-top: 10px; }
+  input[type="file"] {
+    background: #fff;
+    padding: 6px;
+  }
+</style>
+</head>
+<body>
+
+  <h1>📱 Barba</h1>
+  <p>Tienda de iPhones</p>
+
+  <form id="form-agregar">
+    <input type="text" id="modelo" placeholder="Modelo (ej: iPhone 16)" required>
+    <input type="number" id="precio" placeholder="Precio" step="0.01" min="0" required>
+    <input type="number" id="stock" placeholder="Stock" min="0" required>
+    <input type="file" id="imagen" accept="image/png, image/jpeg, image/webp, image/gif">
+    <button type="submit" class="btn-add">Agregar</button>
+  </form>
+
+  <div id="productos">Cargando productos...</div>
+
+  <script>
+    const API = "http://localhost:8080/index.php";
+
+    // Placeholder local (no depende de internet) para productos sin imagen
+    const SIN_IMAGEN = "data:image/svg+xml;utf8," + encodeURIComponent(`
+      <svg xmlns="http://www.w3.org/2000/svg" width="300" height="300">
+        <rect width="100%" height="100%" fill="#333"/>
+        <text x="50%" y="50%" fill="#888" font-family="Arial" font-size="16"
+              text-anchor="middle" dominant-baseline="middle">Sin imagen</text>
+      </svg>
+    `);
+
+    async function cargarProductos() {
+      const res = await fetch(API + "?action=list");
+      const productos = await res.json();
+      const cont = document.getElementById("productos");
+
+      if (!productos.length) {
+        cont.innerHTML = "<p>No hay productos en el catálogo</p>";
+        return;
+      }
+
+      cont.innerHTML = productos.map(p => `
+        <div class="card">
+          <img src="${p.imagen_url || SIN_IMAGEN}" alt="${p.modelo}"
+               onerror="this.onerror=null;this.src='${SIN_IMAGEN}';">
+          <h3>${p.modelo}</h3>
+          <p class="precio">$${Number(p.precio).toFixed(2)}</p>
+          <p>Stock: ${p.stock}</p>
+          <div class="acciones">
+            <button class="btn-buy" onclick="comprar(${p.id})" ${p.stock <= 0 ? "disabled" : ""}>
+              ${p.stock <= 0 ? "Agotado" : "Comprar"}
+            </button>
+            <button class="btn-del" onclick="eliminar(${p.id})">Eliminar</button>
+          </div>
+        </div>
+      `).join("");
+    }
+
+    async function comprar(id) {
+      const res = await fetch(`${API}?action=buy`, {
+        method: "POST",
+        headers: { "Content-Type": "application/x-www-form-urlencoded" },
+        body: new URLSearchParams({ id }),
+      });
+      const data = await res.json();
+      if (data.error) {
+        alert(data.error);
+      } else {
+        alert("✅ Compra realizada");
+      }
+      cargarProductos();
+    }
+
+    async function eliminar(id) {
+      if (!confirm("¿Eliminar este iPhone del catálogo?")) return;
+
+      await fetch(`${API}?action=delete`, {
+        method: "POST",
+        headers: { "Content-Type": "application/x-www-form-urlencoded" },
+        body: new URLSearchParams({ id }),
+      });
+      cargarProductos();
+    }
+
+    document.getElementById("form-agregar").addEventListener("submit", async (e) => {
+      e.preventDefault();
+
+      const modelo = document.getElementById("modelo").value;
+      const precio = document.getElementById("precio").value;
+      const stock  = document.getElementById("stock").value;
+      const imagenInput = document.getElementById("imagen");
+
+      // FormData en vez de URLSearchParams: es lo que permite adjuntar el
+      // archivo (multipart/form-data). No se debe fijar el header
+      // Content-Type a mano, el navegador lo arma solo con el boundary correcto.
+      const datos = new FormData();
+      datos.append("modelo", modelo);
+      datos.append("precio", precio);
+      datos.append("stock", stock);
+      if (imagenInput.files[0]) {
+        datos.append("imagen", imagenInput.files[0]);
+      }
+
+      const res = await fetch(`${API}?action=add`, {
+        method: "POST",
+        body: datos,
+      });
+      const data = await res.json();
+
+      if (data.error) {
+        alert(data.error);
+      } else {
+        e.target.reset();
+      }
+
+      cargarProductos();
+    });
+
+    cargarProductos();
+  </script>
+
+</body>
+</html>
