@@ -1,4 +1,3 @@
-cat > backend/Dockerfile << 'EOF'
 FROM php:8.2-apache
 
 RUN apt-get update && apt-get install -y --no-install-recommends unzip && rm -rf /var/lib/apt/lists/*
@@ -19,4 +18,3 @@ RUN composer install --no-dev --optimize-autoloader
 COPY index.php /var/www/html/index.php
 
 EXPOSE 80
-EOF
