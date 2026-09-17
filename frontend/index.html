@@ -82,7 +82,7 @@
   <div id="productos">Cargando productos...</div>
 
   <script>
-    const API = "http://18.227.71.7:8080/index.php";
+    const API = `http://${window.location.hostname}:8080/index.php`;
 
     // Placeholder local (no depende de internet) para productos sin imagen
     const SIN_IMAGEN = "data:image/svg+xml;utf8," + encodeURIComponent(`
